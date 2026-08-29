@@ -97,7 +97,7 @@ function EditRecipe({ recipeId, onBack, onUpdated }) {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:5000/api/recipes/" + recipeId,
+        "https://recipe-sharing-platform-d6x4.onrender.com/api/recipes/" + recipeId,
         {
           method: "PUT",
           headers: {

@@ -12,7 +12,7 @@ function Login({ onLogin, onRegister }) {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:5000/api/auth/login",
+        "https://recipe-sharing-platform-d6x4.onrender.com/api/auth/login",
         {
           method: "POST",
           headers: {

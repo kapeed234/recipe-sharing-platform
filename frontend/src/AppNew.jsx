@@ -52,7 +52,7 @@ const fetchRecipes = async () => {
     }
 
     const url =
-      "http://127.0.0.1:5000/api/recipes" +
+      "https://recipe-sharing-platform-d6x4.onrender.com/api/recipes" +
       (params.toString()
         ? "?" + params.toString()
         : "");
@@ -103,7 +103,7 @@ const fetchRecipes = async () => {
 
   try {
     const response = await fetch(
-      "http://127.0.0.1:5000/api/reviews/" +
+      "https://recipe-sharing-platform-d6x4.onrender.com/api/reviews/" +
         recipe._id
     );
 
@@ -146,7 +146,7 @@ const fetchRecipes = async () => {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:5000/api/recipes/" +
+        "https://recipe-sharing-platform-d6x4.onrender.com/api/reviews/" +
           selectedRecipe._id,
         {
           method: "DELETE",
@@ -309,7 +309,7 @@ const fetchRecipes = async () => {
         <img
           className="recipe-card-image"
           src={
-            "http://127.0.0.1:5000" +
+            "https://recipe-sharing-platform-d6x4.onrender.com" +
             recipe.image
           }
           alt={recipe.title}
@@ -388,7 +388,7 @@ const fetchRecipes = async () => {
           {selectedRecipe.image && (
             <img
               src={
-                "http://127.0.0.1:5000" +
+                "https://recipe-sharing-platform-d6x4.onrender.com" +
                 selectedRecipe.image
               }
               alt={selectedRecipe.title}
@@ -497,7 +497,7 @@ const fetchRecipes = async () => {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:5000/api/reviews",
+        "https://recipe-sharing-platform-d6x4.onrender.com/api/reviews/",
         {
           method: "POST",
           headers: {
@@ -530,7 +530,7 @@ const fetchRecipes = async () => {
 
       // Reload reviews
       const reviewsResponse = await fetch(
-        "http://127.0.0.1:5000/api/reviews/" +
+        "https://recipe-sharing-platform-d6x4.onrender.com/api/reviews/" +
           selectedRecipe._id
       );
 
@@ -617,7 +617,7 @@ const fetchRecipes = async () => {
 
         try {
           const response = await fetch(
-            "http://127.0.0.1:5000/api/reviews/" +
+            "https://recipe-sharing-platform-d6x4.onrender.com/api/reviews/" +
               editingReview._id,
             {
               method: "PUT",
@@ -754,7 +754,7 @@ const fetchRecipes = async () => {
 
                 try {
                   const response = await fetch(
-                    "http://127.0.0.1:5000/api/reviews/" +
+                    "https://recipe-sharing-platform-d6x4.onrender.com/api/reviews/" +
                       review._id,
                     {
                       method: "DELETE",
