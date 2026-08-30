@@ -6,7 +6,7 @@ function Recipes({ onSelectRecipe }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("http://127.0.0.1:5000/api/recipes")
+    fetch("https://recipe-sharing-platform-d6x4.onrender.com/api/recipes")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch recipes");
@@ -44,7 +44,7 @@ function Recipes({ onSelectRecipe }) {
           <div key={recipe._id}>
             {recipe.image && (
               <img
-                src={`http://127.0.0.1:5000${recipe.image}`}
+                src={`https://recipe-sharing-platform-d6x4.onrender.com${recipe.image}`}
                 alt={recipe.title}
                 width="300"
               />
