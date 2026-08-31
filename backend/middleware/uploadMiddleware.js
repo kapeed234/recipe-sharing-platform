@@ -1,19 +1,21 @@
 const multer = require("multer");
-const path = require("path");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("../config/cloudinary");
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-
-  filename: (req, file, cb) => {
-    const uniqueName =
-      Date.now() +
-      "-" +
-      Math.round(Math.random() * 1E9) +
-      path.extname(file.originalname);
-
-    cb(null, uniqueName);
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "recipe-sharing-platform",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    transformation: [
+      {
+        width: 1200,
+        height: 1200,
+        crop: "limit",
+        quality: "auto",
+        fetch_format: "auto"
+      }
+    ]
   }
 });
 
@@ -21,10 +23,10 @@ const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|webp/;
 
   const extension = allowedTypes.test(
-    path.extname(file.originalname).toLowerCase()
+    file.originalname.toLowerCase()
   );
 
-  const mimeType = allowedTypes.test(file.mimetype);
+  const mimeType = allowedTypes.test(file.mimetype.toLowerCase());
 
   if (extension && mimeType) {
     cb(null, true);
@@ -34,8 +36,8 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
+  storage,
+  fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024
   }
