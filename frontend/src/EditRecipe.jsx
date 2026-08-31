@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const API_URL = "https://recipe-sharing-platform-d6x4.onrender.com";
+const API_URL = "https://recipe-sharing-backend-cltn.onrender.com";
 
 function EditRecipe({ recipeId, onBack, onUpdated }) {
   const [formData, setFormData] = useState({
@@ -99,7 +99,6 @@ function EditRecipe({ recipeId, onBack, onUpdated }) {
       }
 
       setMessage("Recipe updated successfully!");
-
       if (onUpdated) onUpdated(result.recipe);
     } catch (error) {
       console.error("Update recipe error:", error);
@@ -111,85 +110,25 @@ function EditRecipe({ recipeId, onBack, onUpdated }) {
     <div className="edit-recipe-container">
       <div className="edit-recipe-box">
         <button onClick={onBack}>← Back</button>
-
         <h1>Edit Recipe</h1>
         {message && <p>{message}</p>}
 
         {currentImage && (
           <div>
             <p>Current Image:</p>
-            <img
-              src={`${API_URL}${currentImage}`}
-              alt="Current recipe"
-              width="300"
-            />
+            <img src={currentImage.startsWith("http") ? currentImage : `${API_URL}${currentImage}`} alt="Current recipe" width="300" />
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-          <div>
-            <label>Recipe Title</label><br />
-            <input type="text" name="title" value={formData.title} onChange={handleChange} required />
-          </div><br />
-
-          <div>
-            <label>Description</label><br />
-            <textarea name="description" value={formData.description} onChange={handleChange} />
-          </div><br />
-
-          <div>
-            <label>Ingredients</label><br />
-            <input
-              type="text"
-              name="ingredients"
-              value={formData.ingredients}
-              onChange={handleChange}
-              placeholder="Rice, Chicken, Onion, Tomato"
-              required
-            />
-            <p>Separate each ingredient with a comma.</p>
-          </div><br />
-
-          <div>
-            <label>Instructions</label><br />
-            <textarea name="instructions" value={formData.instructions} onChange={handleChange} required />
-          </div><br />
-
-          <div>
-            <label>Category</label><br />
-            <select name="category" value={formData.category} onChange={handleChange}>
-              <option value="Vegetarian">Vegetarian</option>
-              <option value="Non-Vegetarian">Non-Vegetarian</option>
-              <option value="Dessert">Dessert</option>
-              <option value="Snacks">Snacks</option>
-              <option value="Beverages">Beverages</option>
-            </select>
-          </div><br />
-
-          <div>
-            <label>Difficulty</label><br />
-            <select name="difficulty" value={formData.difficulty} onChange={handleChange}>
-              <option value="Easy">Easy</option>
-              <option value="Medium">Medium</option>
-              <option value="Hard">Hard</option>
-            </select>
-          </div><br />
-
-          <div>
-            <label>Cooking Time (minutes)</label><br />
-            <input type="number" name="cookingTime" value={formData.cookingTime} onChange={handleChange} required />
-          </div><br />
-
-          <div>
-            <label>Replace Recipe Image</label><br />
-            <input
-              type="file"
-              accept="image/jpeg,image/jpg,image/png,image/webp"
-              onChange={(e) => setImage(e.target.files?.[0] || null)}
-            />
-            {image && <p>Selected: {image.name}</p>}
-          </div><br />
-
+          <div><label>Recipe Title</label><br /><input type="text" name="title" value={formData.title} onChange={handleChange} required /></div><br />
+          <div><label>Description</label><br /><textarea name="description" value={formData.description} onChange={handleChange} /></div><br />
+          <div><label>Ingredients</label><br /><input type="text" name="ingredients" value={formData.ingredients} onChange={handleChange} placeholder="Rice, Chicken, Onion, Tomato" required /><p>Separate each ingredient with a comma.</p></div><br />
+          <div><label>Instructions</label><br /><textarea name="instructions" value={formData.instructions} onChange={handleChange} required /></div><br />
+          <div><label>Category</label><br /><select name="category" value={formData.category} onChange={handleChange}><option value="Vegetarian">Vegetarian</option><option value="Non-Vegetarian">Non-Vegetarian</option><option value="Dessert">Dessert</option><option value="Snacks">Snacks</option><option value="Beverages">Beverages</option></select></div><br />
+          <div><label>Difficulty</label><br /><select name="difficulty" value={formData.difficulty} onChange={handleChange}><option value="Easy">Easy</option><option value="Medium">Medium</option><option value="Hard">Hard</option></select></div><br />
+          <div><label>Cooking Time (minutes)</label><br /><input type="number" name="cookingTime" value={formData.cookingTime} onChange={handleChange} required /></div><br />
+          <div><label>Replace Recipe Image</label><br /><input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={(e) => setImage(e.target.files?.[0] || null)} />{image && <p>Selected: {image.name}</p>}</div><br />
           <button type="submit">Update Recipe</button>
         </form>
       </div>
