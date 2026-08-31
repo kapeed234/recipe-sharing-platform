@@ -1,5 +1,10 @@
 const Recipe = require("../models/Recipe");
 
+const getCloudinaryUrl = (file) => {
+  if (!file) return "";
+  return file.path || file.secure_url || file.url || "";
+};
+
 // Create a recipe
 const createRecipe = async (req, res) => {
   try {
@@ -14,21 +19,15 @@ const createRecipe = async (req, res) => {
     } = req.body;
 
     if (!title || !ingredients || !instructions || !category || !cookingTime) {
-      return res.status(400).json({
-        message: "Please fill all required fields"
-      });
+      return res.status(400).json({ message: "Please fill all required fields" });
     }
 
     let parsedIngredients = ingredients;
-
     if (typeof ingredients === "string") {
       try {
         parsedIngredients = JSON.parse(ingredients);
       } catch (error) {
-        parsedIngredients = ingredients
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean);
+        parsedIngredients = ingredients.split(",").map((item) => item.trim()).filter(Boolean);
       }
     }
 
@@ -40,14 +39,11 @@ const createRecipe = async (req, res) => {
       category,
       difficulty,
       cookingTime,
-      image: req.file ? "/uploads/" + req.file.filename : "",
+      image: getCloudinaryUrl(req.file),
       author: req.user.id
     });
 
-    res.status(201).json({
-      message: "Recipe created successfully",
-      recipe
-    });
+    res.status(201).json({ message: "Recipe created successfully", recipe });
   } catch (error) {
     console.error("Create Recipe Error:", error);
     res.status(500).json({ message: error.message });
@@ -60,30 +56,16 @@ const getRecipes = async (req, res) => {
     const { search, category, difficulty, maxTime } = req.query;
     const filter = {};
 
-    if (search) {
-      filter.title = { $regex: search, $options: "i" };
-    }
-
-    if (category) {
-      filter.category = { $regex: `^${category}$`, $options: "i" };
-    }
-
-    if (difficulty) {
-      filter.difficulty = { $regex: `^${difficulty}$`, $options: "i" };
-    }
-
-    if (maxTime) {
-      filter.cookingTime = { $lte: Number(maxTime) };
-    }
+    if (search) filter.title = { $regex: search, $options: "i" };
+    if (category) filter.category = { $regex: `^${category}$`, $options: "i" };
+    if (difficulty) filter.difficulty = { $regex: `^${difficulty}$`, $options: "i" };
+    if (maxTime) filter.cookingTime = { $lte: Number(maxTime) };
 
     const recipes = await Recipe.find(filter)
       .populate("author", "name email")
       .sort({ createdAt: -1 });
 
-    res.status(200).json({
-      count: recipes.length,
-      recipes
-    });
+    res.status(200).json({ count: recipes.length, recipes });
   } catch (error) {
     console.error("Get Recipes Error:", error);
     res.status(500).json({ message: error.message });
@@ -93,13 +75,8 @@ const getRecipes = async (req, res) => {
 // Get one recipe
 const getRecipeById = async (req, res) => {
   try {
-    const recipe = await Recipe.findById(req.params.id)
-      .populate("author", "name email");
-
-    if (!recipe) {
-      return res.status(404).json({ message: "Recipe not found" });
-    }
-
+    const recipe = await Recipe.findById(req.params.id).populate("author", "name email");
+    if (!recipe) return res.status(404).json({ message: "Recipe not found" });
     res.status(200).json(recipe);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -111,14 +88,10 @@ const updateRecipe = async (req, res) => {
   try {
     const recipe = await Recipe.findById(req.params.id);
 
-    if (!recipe) {
-      return res.status(404).json({ message: "Recipe not found" });
-    }
+    if (!recipe) return res.status(404).json({ message: "Recipe not found" });
 
     if (recipe.author.toString() !== req.user.id) {
-      return res.status(403).json({
-        message: "You are not allowed to update this recipe"
-      });
+      return res.status(403).json({ message: "You are not allowed to update this recipe" });
     }
 
     const {
@@ -136,18 +109,13 @@ const updateRecipe = async (req, res) => {
 
     if (ingredients !== undefined) {
       let parsedIngredients = ingredients;
-
       if (typeof ingredients === "string") {
         try {
           parsedIngredients = JSON.parse(ingredients);
         } catch (error) {
-          parsedIngredients = ingredients
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean);
+          parsedIngredients = ingredients.split(",").map((item) => item.trim()).filter(Boolean);
         }
       }
-
       recipe.ingredients = parsedIngredients;
     }
 
@@ -156,17 +124,12 @@ const updateRecipe = async (req, res) => {
     recipe.difficulty = difficulty ?? recipe.difficulty;
     recipe.cookingTime = cookingTime ?? recipe.cookingTime;
 
-    // Replace the image only when a new image was uploaded.
     if (req.file) {
-      recipe.image = "/uploads/" + req.file.filename;
+      recipe.image = getCloudinaryUrl(req.file);
     }
 
     const updatedRecipe = await recipe.save();
-
-    res.status(200).json({
-      message: "Recipe updated successfully",
-      recipe: updatedRecipe
-    });
+    res.status(200).json({ message: "Recipe updated successfully", recipe: updatedRecipe });
   } catch (error) {
     console.error("Update Recipe Error:", error);
     res.status(500).json({ message: error.message });
@@ -177,22 +140,14 @@ const updateRecipe = async (req, res) => {
 const deleteRecipe = async (req, res) => {
   try {
     const recipe = await Recipe.findById(req.params.id);
-
-    if (!recipe) {
-      return res.status(404).json({ message: "Recipe not found" });
-    }
+    if (!recipe) return res.status(404).json({ message: "Recipe not found" });
 
     if (recipe.author.toString() !== req.user.id) {
-      return res.status(403).json({
-        message: "You are not allowed to delete this recipe"
-      });
+      return res.status(403).json({ message: "You are not allowed to delete this recipe" });
     }
 
     await Recipe.findByIdAndDelete(req.params.id);
-
-    res.status(200).json({
-      message: "Recipe deleted successfully"
-    });
+    res.status(200).json({ message: "Recipe deleted successfully" });
   } catch (error) {
     console.error("Delete Recipe Error:", error);
     res.status(500).json({ message: error.message });
