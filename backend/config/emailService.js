@@ -5,17 +5,28 @@ const nodemailer = require("nodemailer");
  * Compatible with Gmail, Brevo, SendGrid, Mailgun, or standard SMTP.
  */
 const getTransporter = () => {
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
+  const user = process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : "";
+  const pass = process.env.EMAIL_PASS ? process.env.EMAIL_PASS.trim() : "";
 
   if (!user || !pass) {
     return null;
   }
 
-  const host = process.env.EMAIL_HOST || "smtp.gmail.com";
+  const host = process.env.EMAIL_HOST ? process.env.EMAIL_HOST.trim() : "smtp.gmail.com";
   const port = Number(process.env.EMAIL_PORT) || 465;
-  const secure = port === 465;
 
+  // Use nodemailer built-in service preset for Gmail for maximum compatibility
+  if (host.includes("gmail") || user.endsWith("@gmail.com")) {
+    return nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user,
+        pass
+      }
+    });
+  }
+
+  const secure = port === 465;
   return nodemailer.createTransport({
     host,
     port,
@@ -37,7 +48,17 @@ const sendVerificationEmail = async (email, name, otp) => {
   const transporter = getTransporter();
 
   const appName = "Recipe Sharing Platform";
-  const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER || `"${appName}" <no-reply@recipesharing.com>`;
+  const user = process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : "";
+  
+  // Gmail requires the 'from' address to match the authenticated account to avoid rejection
+  let fromAddress;
+  if (process.env.EMAIL_FROM && !process.env.EMAIL_FROM.includes("recipesharing.com")) {
+    fromAddress = process.env.EMAIL_FROM;
+  } else if (user) {
+    fromAddress = `"${appName}" <${user}>`;
+  } else {
+    fromAddress = `"${appName}" <no-reply@recipesharing.com>`;
+  }
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -94,7 +115,7 @@ const sendVerificationEmail = async (email, name, otp) => {
     console.log("⏱️  Valid for 10 minutes");
     console.log("👉 To send real emails to inboxes, add EMAIL_USER and EMAIL_PASS to backend/.env");
     console.log("=======================================================\n");
-    return { success: true, simulated: true };
+    return { success: true, simulated: true, previewOtp: otp };
   }
 
   try {
@@ -107,14 +128,14 @@ const sendVerificationEmail = async (email, name, otp) => {
     });
 
     console.log(`Verification email sent successfully to ${email}. MessageId: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
+    return { success: true, simulated: false, messageId: info.messageId };
   } catch (error) {
     console.error(`Failed to send email to ${email}:`, error.message);
     console.log("\n-------------------------------------------------------");
     console.log("⚠️  SMTP SEND ERROR FALLBACK");
     console.log(`🔐 Verification OTP for ${email}: [ ${otp} ]`);
     console.log("-------------------------------------------------------\n");
-    return { success: false, error: error.message, simulated: true };
+    return { success: false, error: error.message, simulated: true, previewOtp: otp };
   }
 };
 

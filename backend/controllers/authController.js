@@ -56,7 +56,7 @@ const registerUser = async (req, res) => {
 
     if (existingUser) {
       // If user is already registered and verified
-      if (existingUser.isVerified !== false) {
+      if (existingUser.isVerified === true) {
         return res.status(400).json({
           message: "An account with this email address already exists. Please log in."
         });
@@ -65,16 +65,21 @@ const registerUser = async (req, res) => {
       // If user registered earlier but never verified their email, refresh details & send a new OTP
       existingUser.name = trimmedName;
       existingUser.password = hashedPassword;
+      existingUser.isVerified = false;
       existingUser.verificationCode = otp;
       existingUser.verificationCodeExpires = otpExpires;
       await existingUser.save();
 
-      await sendVerificationEmail(existingUser.email, existingUser.name, otp);
+      const emailResult = await sendVerificationEmail(existingUser.email, existingUser.name, otp);
 
       return res.status(200).json({
-        message: "A verification code has been sent to your email. Please enter it to activate your account.",
+        message: emailResult?.simulated
+          ? "Account updated. SMTP credentials not detected, demo OTP code provided."
+          : "A verification code has been sent to your email. Please enter it to activate your account.",
         email: existingUser.email,
-        requiresVerification: true
+        requiresVerification: true,
+        simulated: Boolean(emailResult?.simulated),
+        previewOtp: emailResult?.simulated ? emailResult.previewOtp : undefined
       });
     }
 
@@ -88,12 +93,16 @@ const registerUser = async (req, res) => {
       verificationCodeExpires: otpExpires
     });
 
-    await sendVerificationEmail(user.email, user.name, otp);
+    const emailResult = await sendVerificationEmail(user.email, user.name, otp);
 
     res.status(201).json({
-      message: "Registration successful! A 6-digit verification code has been sent to your email.",
+      message: emailResult?.simulated
+        ? "Registration successful! Demo mode active (no SMTP configured)."
+        : "Registration successful! A 6-digit verification code has been sent to your email.",
       email: user.email,
-      requiresVerification: true
+      requiresVerification: true,
+      simulated: Boolean(emailResult?.simulated),
+      previewOtp: emailResult?.simulated ? emailResult.previewOtp : undefined
     });
 
   } catch (error) {
@@ -219,10 +228,14 @@ const resendVerificationCode = async (req, res) => {
     user.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    await sendVerificationEmail(user.email, user.name, otp);
+    const emailResult = await sendVerificationEmail(user.email, user.name, otp);
 
     res.status(200).json({
-      message: "A fresh 6-digit verification code has been sent to your email."
+      message: emailResult?.simulated
+        ? "Verification code refreshed (demo mode active)."
+        : "A fresh 6-digit verification code has been sent to your email.",
+      simulated: Boolean(emailResult?.simulated),
+      previewOtp: emailResult?.simulated ? emailResult.previewOtp : undefined
     });
 
   } catch (error) {
@@ -269,12 +282,14 @@ const loginUser = async (req, res) => {
       user.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
       await user.save();
 
-      await sendVerificationEmail(user.email, user.name, otp);
+      const emailResult = await sendVerificationEmail(user.email, user.name, otp);
 
       return res.status(403).json({
-        message: "Your email address is not verified yet. A fresh verification code has been sent to your email.",
+        message: "Your email address is not verified yet. Please enter the verification code.",
         requiresVerification: true,
-        email: user.email
+        email: user.email,
+        simulated: Boolean(emailResult?.simulated),
+        previewOtp: emailResult?.simulated ? emailResult.previewOtp : undefined
       });
     }
 

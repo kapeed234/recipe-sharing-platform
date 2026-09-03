@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const API_URL = "https://recipe-sharing-backend-cltn.onrender.com";
+const API_URL = import.meta.env.VITE_API_URL || "https://recipe-sharing-backend-cltn.onrender.com";
 
 function EditRecipe({ recipeId, onBack, onUpdated }) {
   const [formData, setFormData] = useState({

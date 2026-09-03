@@ -2,6 +2,30 @@ import { useState, useEffect } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL || "https://recipe-sharing-backend-cltn.onrender.com";
 
+// Detect common email domain typos (e.g. gmai.com -> gmail.com)
+const checkEmailTypo = (rawEmail) => {
+  if (!rawEmail || !rawEmail.includes("@")) return null;
+  const parts = rawEmail.split("@");
+  if (parts.length !== 2) return null;
+  const domain = parts[1].toLowerCase().trim();
+  const typos = {
+    "gmai.com": "gmail.com",
+    "gmaill.com": "gmail.com",
+    "gamil.com": "gmail.com",
+    "gmial.com": "gmail.com",
+    "gmai.co": "gmail.com",
+    "gmail.co": "gmail.com",
+    "yaho.com": "yahoo.com",
+    "yahooo.com": "yahoo.com",
+    "hotmial.com": "hotmail.com",
+    "outlok.com": "outlook.com"
+  };
+  if (typos[domain]) {
+    return `${parts[0]}@${typos[domain]}`;
+  }
+  return null;
+};
+
 function Register({ onRegistered, onBack, initialEmail = "", initialStep = "register" }) {
   const [step, setStep] = useState(initialStep); // "register" | "verify"
   const [name, setName] = useState("");
@@ -13,10 +37,13 @@ function Register({ onRegistered, onBack, initialEmail = "", initialStep = "regi
 
   // OTP Verification state
   const [otp, setOtp] = useState("");
+  const [devOtp, setDevOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  const suggestedEmail = checkEmailTypo(email);
 
   // Cooldown timer for resend OTP
   useEffect(() => {
@@ -49,6 +76,17 @@ function Register({ onRegistered, onBack, initialEmail = "", initialStep = "regi
       return;
     }
 
+    // Typo alert check
+    if (suggestedEmail) {
+      const useSuggested = window.confirm(
+        `It looks like you typed "${email}".\n\nDid you mean "${suggestedEmail}"?\n\nClick OK to use the corrected email or Cancel to keep "${email}".`
+      );
+      if (useSuggested) {
+        setEmail(suggestedEmail);
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -67,6 +105,12 @@ function Register({ onRegistered, onBack, initialEmail = "", initialStep = "regi
       const data = await response.json();
 
       if (response.ok) {
+        if (data.previewOtp) {
+          setDevOtp(data.previewOtp);
+          setOtp(data.previewOtp);
+        } else {
+          setDevOtp("");
+        }
         setSuccessMessage(data.message || "Verification code sent to your email!");
         setStep("verify");
         setResendCooldown(60);
@@ -155,7 +199,13 @@ function Register({ onRegistered, onBack, initialEmail = "", initialStep = "regi
       const data = await response.json();
 
       if (response.ok) {
-        setSuccessMessage("A fresh verification code has been sent to your email!");
+        if (data.previewOtp) {
+          setDevOtp(data.previewOtp);
+          setOtp(data.previewOtp);
+        } else {
+          setDevOtp("");
+        }
+        setSuccessMessage(data.message || "A fresh verification code has been sent to your email!");
         setResendCooldown(60);
       } else {
         setErrorMessage(data.message || "Could not resend verification code.");
@@ -211,6 +261,26 @@ function Register({ onRegistered, onBack, initialEmail = "", initialStep = "regi
                     required
                   />
                 </div>
+                {suggestedEmail && (
+                  <div style={{ marginTop: "6px", fontSize: "13px", color: "#b45309", background: "#fffbeb", padding: "6px 10px", borderRadius: "6px", border: "1px solid #fde68a" }}>
+                    ⚠️ Typo detected? Did you mean <strong>{suggestedEmail}</strong>?{" "}
+                    <button
+                      type="button"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#1677f9",
+                        textDecoration: "underline",
+                        cursor: "pointer",
+                        fontWeight: "600",
+                        padding: 0
+                      }}
+                      onClick={() => setEmail(suggestedEmail)}
+                    >
+                      Click here to use {suggestedEmail}
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="form-group">
@@ -308,6 +378,37 @@ function Register({ onRegistered, onBack, initialEmail = "", initialStep = "regi
 
             {errorMessage && <div className="auth-alert error-alert">{errorMessage}</div>}
             {successMessage && <div className="auth-alert success-alert">{successMessage}</div>}
+
+            {devOtp && (
+              <div
+                style={{
+                  background: "#eff6ff",
+                  border: "1px solid #bfdbfe",
+                  borderRadius: "10px",
+                  padding: "14px 16px",
+                  margin: "14px 0",
+                  textAlign: "center"
+                }}
+              >
+                <div style={{ fontSize: "11px", fontWeight: "700", color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  ⚡ DEMO / LOCAL FALLBACK CODE
+                </div>
+                <div style={{ fontSize: "13px", color: "#334155", marginTop: "4px" }}>
+                  SMTP is not configured on the server. Your verification code is:
+                </div>
+                <div
+                  style={{
+                    fontSize: "26px",
+                    fontWeight: "800",
+                    color: "#2563eb",
+                    letterSpacing: "4px",
+                    marginTop: "6px"
+                  }}
+                >
+                  {devOtp}
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleVerifyOtp}>
               <div className="form-group">

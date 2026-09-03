@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const API_URL = "https://recipe-sharing-backend-cltn.onrender.com";
+const API_URL = import.meta.env.VITE_API_URL || "https://recipe-sharing-backend-cltn.onrender.com";
 
 function CreateRecipe({ onBack, onCreated }) {
   const [formData, setFormData] = useState({ title: "", description: "", ingredients: "", instructions: "", category: "Vegetarian", difficulty: "Easy", cookingTime: "" });
