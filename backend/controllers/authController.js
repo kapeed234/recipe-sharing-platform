@@ -1,14 +1,7 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { sendVerificationEmail } = require("../config/emailService");
 
-// Helper to generate a 6-digit numeric OTP
-const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
-
-// Helper to validate email format
 const isValidEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
@@ -19,7 +12,6 @@ const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Formal field validation
     if (!name || !email || !password) {
       return res.status(400).json({
         message: "Please fill in all required fields."
@@ -49,138 +41,29 @@ const registerUser = async (req, res) => {
 
     const existingUser = await User.findOne({ email: normalizedEmail });
 
-    // Generate 6-digit OTP and set 10-minute expiry
-    const otp = generateOTP();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     if (existingUser) {
-      // If user is already registered and verified
-      if (existingUser.isVerified === true) {
-        return res.status(400).json({
-          message: "An account with this email address already exists. Please log in."
-        });
-      }
-
-      // If user registered earlier but never verified their email, refresh details & send a new OTP
-      existingUser.name = trimmedName;
-      existingUser.password = hashedPassword;
-      existingUser.isVerified = false;
-      existingUser.verificationCode = otp;
-      existingUser.verificationCodeExpires = otpExpires;
-      await existingUser.save();
-
-      const emailResult = await sendVerificationEmail(existingUser.email, existingUser.name, otp);
-
-      return res.status(200).json({
-        message: emailResult?.simulated
-          ? "Account updated. SMTP credentials not detected, demo OTP code provided."
-          : "A verification code has been sent to your email. Please enter it to activate your account.",
-        email: existingUser.email,
-        requiresVerification: true,
-        simulated: Boolean(emailResult?.simulated),
-        previewOtp: emailResult?.simulated ? emailResult.previewOtp : undefined
+      return res.status(400).json({
+        message: "An account with this email address already exists. Please log in."
       });
     }
 
-    // Create new unverified user
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = await User.create({
       name: trimmedName,
       email: normalizedEmail,
       password: hashedPassword,
-      isVerified: false,
-      verificationCode: otp,
-      verificationCodeExpires: otpExpires
+      isVerified: true
     });
 
-    const emailResult = await sendVerificationEmail(user.email, user.name, otp);
-
-    res.status(201).json({
-      message: emailResult?.simulated
-        ? "Registration successful! Demo mode active (no SMTP configured)."
-        : "Registration successful! A 6-digit verification code has been sent to your email.",
-      email: user.email,
-      requiresVerification: true,
-      simulated: Boolean(emailResult?.simulated),
-      previewOtp: emailResult?.simulated ? emailResult.previewOtp : undefined
-    });
-
-  } catch (error) {
-    console.error("Registration Error:", error);
-    res.status(500).json({
-      message: error.message || "An error occurred during registration."
-    });
-  }
-};
-
-// ================= VERIFY EMAIL (OTP) =================
-const verifyEmail = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-
-    if (!email || !otp) {
-      return res.status(400).json({
-        message: "Email and verification code are required."
-      });
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail });
-
-    if (!user) {
-      return res.status(404).json({
-        message: "User account not found."
-      });
-    }
-
-    // Already verified
-    if (user.isVerified === true) {
-      const token = jwt.sign(
-        { id: user._id },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-      );
-
-      return res.status(200).json({
-        message: "Email is already verified.",
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email
-        }
-      });
-    }
-
-    // Check expiration
-    if (!user.verificationCodeExpires || user.verificationCodeExpires < new Date()) {
-      return res.status(400).json({
-        message: "Verification code has expired. Please request a new code."
-      });
-    }
-
-    // Verify OTP match
-    if (user.verificationCode !== otp.trim()) {
-      return res.status(400).json({
-        message: "Invalid verification code. Please check and try again."
-      });
-    }
-
-    // Mark as verified & clear verification code
-    user.isVerified = true;
-    user.verificationCode = null;
-    user.verificationCodeExpires = null;
-    await user.save();
-
-    // Issue JWT token immediately so user is automatically logged in
     const token = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    res.status(200).json({
-      message: "Email verified successfully! Welcome to Recipe Sharing Platform.",
+    return res.status(201).json({
+      message: "Registration successful!",
       token,
       user: {
         id: user._id,
@@ -188,60 +71,10 @@ const verifyEmail = async (req, res) => {
         email: user.email
       }
     });
-
   } catch (error) {
-    console.error("Email Verification Error:", error);
-    res.status(500).json({
-      message: error.message || "An error occurred during email verification."
-    });
-  }
-};
-
-// ================= RESEND VERIFICATION CODE =================
-const resendVerificationCode = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({
-        message: "Email address is required."
-      });
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail });
-
-    if (!user) {
-      return res.status(404).json({
-        message: "User account not found."
-      });
-    }
-
-    if (user.isVerified === true) {
-      return res.status(400).json({
-        message: "This account is already verified. You can log in directly."
-      });
-    }
-
-    const otp = generateOTP();
-    user.verificationCode = otp;
-    user.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
-    await user.save();
-
-    const emailResult = await sendVerificationEmail(user.email, user.name, otp);
-
-    res.status(200).json({
-      message: emailResult?.simulated
-        ? "Verification code refreshed (demo mode active)."
-        : "A fresh 6-digit verification code has been sent to your email.",
-      simulated: Boolean(emailResult?.simulated),
-      previewOtp: emailResult?.simulated ? emailResult.previewOtp : undefined
-    });
-
-  } catch (error) {
-    console.error("Resend OTP Error:", error);
-    res.status(500).json({
-      message: error.message || "Unable to resend verification code."
+    console.error("Registration Error:", error);
+    return res.status(500).json({
+      message: error.message || "An error occurred during registration."
     });
   }
 };
@@ -274,32 +107,13 @@ const loginUser = async (req, res) => {
       });
     }
 
-    // If account was explicitly marked unverified with an active verification code (new registration flow), prompt user to verify
-    // Existing users without a verification code are never blocked
-    if (user.isVerified === false && Boolean(user.verificationCode)) {
-      const otp = generateOTP();
-      user.verificationCode = otp;
-      user.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
-      await user.save();
-
-      const emailResult = await sendVerificationEmail(user.email, user.name, otp);
-
-      return res.status(403).json({
-        message: "Your email address is not verified yet. Please enter the verification code.",
-        requiresVerification: true,
-        email: user.email,
-        simulated: Boolean(emailResult?.simulated),
-        previewOtp: emailResult?.simulated ? emailResult.previewOtp : undefined
-      });
-    }
-
     const token = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Login successful",
       token,
       user: {
@@ -308,10 +122,9 @@ const loginUser = async (req, res) => {
         email: user.email
       }
     });
-
   } catch (error) {
     console.error("Login Error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       message: error.message || "An error occurred during login."
     });
   }
@@ -319,7 +132,5 @@ const loginUser = async (req, res) => {
 
 module.exports = {
   registerUser,
-  verifyEmail,
-  resendVerificationCode,
   loginUser
 };
