@@ -20,6 +20,20 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       minlength: 6
+    },
+
+    isVerified: {
+      type: Boolean
+    },
+
+    verificationCode: {
+      type: String,
+      default: null
+    },
+
+    verificationCodeExpires: {
+      type: Date,
+      default: null
     }
   },
   {

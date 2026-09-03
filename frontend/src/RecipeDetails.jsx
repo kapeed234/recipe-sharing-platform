@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 
+const API_URL = import.meta.env.VITE_API_URL || "https://recipe-sharing-backend-cltn.onrender.com";
+
 function RecipeDetails({ recipeId, onBack }) {
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch(`http://127.0.0.1:5000/api/recipes/${recipeId}`)
+    fetch(`${API_URL}/api/recipes/${recipeId}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Recipe not found");
@@ -46,7 +48,7 @@ function RecipeDetails({ recipeId, onBack }) {
 
       {recipe.image && (
         <img
-          src={`http://127.0.0.1:5000${recipe.image}`}
+          src={recipe.image.startsWith("http") ? recipe.image : `${API_URL}${recipe.image}`}
           alt={recipe.title}
           width="400"
         />

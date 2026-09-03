@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 
+const API_URL = import.meta.env.VITE_API_URL || "https://recipe-sharing-backend-cltn.onrender.com";
+
 function Recipes({ onSelectRecipe }) {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("https://recipe-sharing-platform-d6x4.onrender.com/api/recipes")
+    fetch(`${API_URL}/api/recipes`)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch recipes");
@@ -44,7 +46,7 @@ function Recipes({ onSelectRecipe }) {
           <div key={recipe._id}>
             {recipe.image && (
               <img
-                src={`https://recipe-sharing-platform-d6x4.onrender.com${recipe.image}`}
+                src={recipe.image.startsWith("http") ? recipe.image : `${API_URL}${recipe.image}`}
                 alt={recipe.title}
                 width="300"
               />

@@ -4,10 +4,21 @@ import Login from "./Login";
 import CreateRecipe from "./CreateRecipe";
 import EditRecipe from "./EditRecipe";
 
-const API_URL = "https://recipe-sharing-backend-cltn.onrender.com";
+const API_URL = import.meta.env.VITE_API_URL || "https://recipe-sharing-backend-cltn.onrender.com";
 
 function App() {
-  const [page, setPage] = useState("login");
+  const [page, setPage] = useState(() => localStorage.getItem("token") ? "recipes" : "login");
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const u = localStorage.getItem("user");
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [myRecipesOnly, setMyRecipesOnly] = useState(false);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authStep, setAuthStep] = useState("register");
   const [recipes, setRecipes] = useState([]);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [message, setMessage] = useState("");
@@ -48,9 +59,19 @@ function App() {
     if (page === "recipes") fetchRecipes();
   }, [page]);
 
+  const handleLoginSuccess = () => {
+    try {
+      const u = localStorage.getItem("user");
+      if (u) setCurrentUser(JSON.parse(u));
+    } catch {}
+    setPage("recipes");
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    setCurrentUser(null);
+    setMyRecipesOnly(false);
     setRecipes([]);
     setSelectedRecipe(null);
     setPage("login");
@@ -101,50 +122,113 @@ function App() {
 
   return (
     <div>
-      {page === "login" && <Login onLogin={() => setPage("recipes")} onRegister={() => setPage("register")} />}
-      {page === "register" && <Register onRegistered={() => setPage("login")} onBack={() => setPage("login")} />}
+      {page === "login" && (
+        <Login
+          onLogin={handleLoginSuccess}
+          onRegister={() => {
+            setAuthEmail("");
+            setAuthStep("register");
+            setPage("register");
+          }}
+          onVerifyEmail={(email) => {
+            setAuthEmail(email);
+            setAuthStep("verify");
+            setPage("register");
+          }}
+        />
+      )}
+      {page === "register" && (
+        <Register
+          initialEmail={authEmail}
+          initialStep={authStep}
+          onRegistered={handleLoginSuccess}
+          onBack={() => setPage("login")}
+        />
+      )}
 
-      {page === "recipes" && (
-        <div className="recipe-container">
-          <div className="recipe-header">
-            <h1>🍴 Recipe Sharing Platform</h1>
-            <div><button onClick={() => setPage("create")}>➕ Create Recipe</button><button onClick={handleLogout}>🚪 Logout</button></div>
-          </div>
+      {page === "recipes" && (() => {
+        const currentUserId = currentUser?._id || currentUser?.id;
+        const displayedRecipes = myRecipesOnly && currentUserId
+          ? recipes.filter((r) => {
+              const authorId = r.author?._id || r.author;
+              return authorId === currentUserId;
+            })
+          : recipes;
 
-          <div className="filter-box">
-            <h3>🔎 Search & Filter Recipes</h3>
-            <div className="filter-controls">
-              <input type="text" placeholder="Search recipe..." value={search} onChange={(e) => setSearch(e.target.value)} />
-              <select value={category} onChange={(e) => setCategory(e.target.value)}><option value="">All Categories</option><option value="Vegetarian">Vegetarian</option><option value="Non-Vegetarian">Non-Vegetarian</option><option value="Dessert">Dessert</option><option value="Snacks">Snacks</option><option value="Beverages">Beverages</option></select>
-              <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}><option value="">All Difficulties</option><option value="Easy">Easy</option><option value="Medium">Medium</option><option value="Hard">Hard</option></select>
-              <input type="number" placeholder="Max cooking time" value={maxTime} onChange={(e) => setMaxTime(e.target.value)} />
-              <button onClick={fetchRecipes}>🔍 Search</button>
-              <button onClick={() => { setSearch(""); setCategory(""); setDifficulty(""); setMaxTime(""); setTimeout(fetchRecipes, 0); }}>Clear Filters</button>
+        return (
+          <div className="recipe-container">
+            <div className="recipe-header">
+              <div>
+                <h1>🍴 Recipe Sharing Platform</h1>
+                {currentUser && (
+                  <p className="user-welcome">
+                    Logged in as <strong>{currentUser.name}</strong> ({currentUser.email})
+                  </p>
+                )}
+              </div>
+              <div className="header-buttons" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                {currentUser && (
+                  <button
+                    className={`my-recipes-toggle ${myRecipesOnly ? "active" : ""}`}
+                    onClick={() => setMyRecipesOnly(!myRecipesOnly)}
+                  >
+                    {myRecipesOnly ? "🍽️ Show All Recipes" : "👤 My Recipes"}
+                  </button>
+                )}
+                <button onClick={() => setPage("create")}>➕ Create Recipe</button>
+                <button onClick={handleLogout}>🚪 Logout</button>
+              </div>
+            </div>
+
+            <div className="filter-box">
+              <h3>🔎 Search & Filter Recipes</h3>
+              <div className="filter-controls">
+                <input type="text" placeholder="Search recipe..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                <select value={category} onChange={(e) => setCategory(e.target.value)}><option value="">All Categories</option><option value="Vegetarian">Vegetarian</option><option value="Non-Vegetarian">Non-Vegetarian</option><option value="Dessert">Dessert</option><option value="Snacks">Snacks</option><option value="Beverages">Beverages</option></select>
+                <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}><option value="">All Difficulties</option><option value="Easy">Easy</option><option value="Medium">Medium</option><option value="Hard">Hard</option></select>
+                <input type="number" placeholder="Max cooking time" value={maxTime} onChange={(e) => setMaxTime(e.target.value)} />
+                <button onClick={fetchRecipes}>🔍 Search</button>
+                <button onClick={() => { setSearch(""); setCategory(""); setDifficulty(""); setMaxTime(""); setTimeout(fetchRecipes, 0); }}>Clear Filters</button>
+              </div>
+            </div>
+
+            <hr />
+            <p>{message}</p>
+            {displayedRecipes.length === 0 && !message && (
+              <p style={{ textAlign: "center", padding: "30px 0", color: "#666" }}>
+                {myRecipesOnly ? "You haven't created any recipes yet. Click '➕ Create Recipe' above!" : "No recipes found."}
+              </p>
+            )}
+            <div className="recipe-grid">
+              {displayedRecipes.map((recipe) => {
+                const isAuthor = currentUserId && ((recipe.author?._id || recipe.author) === currentUserId);
+                return (
+                  <div className="recipe-card" key={recipe._id}>
+                    {recipe.image && <img className="recipe-card-image" src={imageUrl(recipe.image)} alt={recipe.title} />}
+                    <div className="recipe-card-content">
+                      <h2>{recipe.title}</h2>
+                      <p className="recipe-description">{recipe.description}</p>
+                      <div className="recipe-info">
+                        <p><strong>Category</strong><span>{recipe.category}</span></p>
+                        <p><strong>Difficulty</strong><span>{recipe.difficulty}</span></p>
+                        <p><strong>Cooking Time</strong><span>⏱️ {recipe.cookingTime} minutes</span></p>
+                        <p>
+                          <strong>Author</strong>
+                          <span>
+                            {recipe.author?.name || "Chef"}
+                            {isAuthor && <span className="author-badge-you">👤 You</span>}
+                          </span>
+                        </p>
+                      </div>
+                      <button className="view-recipe-button" onClick={() => openRecipe(recipe)}>👁️ View Recipe</button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-
-          <hr />
-          <p>{message}</p>
-          {recipes.length === 0 && !message && <p>No recipes found.</p>}
-          <div className="recipe-grid">
-            {recipes.map((recipe) => (
-              <div className="recipe-card" key={recipe._id}>
-                {recipe.image && <img className="recipe-card-image" src={imageUrl(recipe.image)} alt={recipe.title} />}
-                <div className="recipe-card-content">
-                  <h2>{recipe.title}</h2>
-                  <p className="recipe-description">{recipe.description}</p>
-                  <div className="recipe-info">
-                    <p><strong>Category</strong><span>{recipe.category}</span></p>
-                    <p><strong>Difficulty</strong><span>{recipe.difficulty}</span></p>
-                    <p><strong>Cooking Time</strong><span>⏱️ {recipe.cookingTime} minutes</span></p>
-                  </div>
-                  <button className="view-recipe-button" onClick={() => openRecipe(recipe)}>👁️ View Recipe</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {page === "create" && <CreateRecipe onBack={() => setPage("recipes")} onCreated={() => { setPage("recipes"); fetchRecipes(); }} />}
 
@@ -160,9 +244,22 @@ function App() {
           <p><strong>Category:</strong> {selectedRecipe.category}</p>
           <p><strong>Difficulty:</strong> {selectedRecipe.difficulty}</p>
           <p><strong>Cooking Time:</strong> {selectedRecipe.cookingTime} minutes</p>
+          <p><strong>Author:</strong> {selectedRecipe.author?.name || "Chef"}</p>
           <br />
-          <button onClick={() => setPage("edit")}>✏️ Edit Recipe</button>
-          <button onClick={deleteRecipe}>🗑️ Delete Recipe</button>
+          {(() => {
+            const currentUserId = currentUser?._id || currentUser?.id;
+            const isAuthor = currentUserId && ((selectedRecipe.author?._id || selectedRecipe.author) === currentUserId);
+            return isAuthor ? (
+              <div style={{ display: "inline-flex", gap: "10px", marginBottom: "15px" }}>
+                <button onClick={() => setPage("edit")}>✏️ Edit Recipe</button>
+                <button onClick={deleteRecipe}>🗑️ Delete Recipe</button>
+              </div>
+            ) : (
+              <p style={{ color: "#666", fontStyle: "italic", marginBottom: "15px" }}>
+                👤 Created by {selectedRecipe.author?.name || "another chef"}
+              </p>
+            );
+          })()}
 
           <hr />
           <h2>⭐ Ratings & Reviews</h2>
