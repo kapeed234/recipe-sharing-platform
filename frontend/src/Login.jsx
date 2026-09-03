@@ -2,20 +2,18 @@ import { useState } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL || "https://recipe-sharing-backend-cltn.onrender.com";
 
-function Login({ onLogin, onRegister, onVerifyEmail }) {
+function Login({ onLogin, onRegister }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
-  const [unverifiedEmail, setUnverifiedEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("Logging in...");
     setIsError(false);
-    setUnverifiedEmail("");
     setLoading(true);
 
     try {
@@ -39,9 +37,6 @@ function Login({ onLogin, onRegister, onVerifyEmail }) {
       } else {
         setIsError(true);
         setMessage(data.message || "Invalid email or password");
-        if (data.requiresVerification && data.email) {
-          setUnverifiedEmail(data.email);
-        }
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -69,30 +64,12 @@ function Login({ onLogin, onRegister, onVerifyEmail }) {
           </div>
         )}
 
-        {unverifiedEmail && (
-          <div style={{ textAlign: "center", marginBottom: "20px" }}>
-            <button
-              type="button"
-              className="verify-now-btn"
-              onClick={() => onVerifyEmail ? onVerifyEmail(unverifiedEmail) : onRegister()}
-            >
-              ✉️ Enter Verification Code for {unverifiedEmail}
-            </button>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Email address</label>
             <div className="input-wrapper">
               <span className="input-icon">✉</span>
-              <input
-                type="email"
-                placeholder="Enter email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              <input type="email" placeholder="Enter email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
           </div>
 
@@ -100,45 +77,24 @@ function Login({ onLogin, onRegister, onVerifyEmail }) {
             <label>Password</label>
             <div className="input-wrapper">
               <span className="input-icon">🔒</span>
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="password-toggle-btn"
-                onClick={() => setShowPassword(!showPassword)}
-                tabIndex="-1"
-              >
+              <input type={showPassword ? "text" : "password"} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <button type="button" className="password-toggle-btn" onClick={() => setShowPassword(!showPassword)} tabIndex="-1">
                 {showPassword ? "👁️" : "👁️‍🗨️"}
               </button>
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="login-button"
-            disabled={loading}
-          >
+          <button type="submit" className="login-button" disabled={loading}>
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
 
         <div className="divider">
-          <span></span>
-          <p>or</p>
-          <span></span>
+          <span></span><p>or</p><span></span>
         </div>
 
         <p className="register-text">Don't have an account?</p>
-        <button
-          type="button"
-          className="register-button"
-          onClick={onRegister}
-        >
+        <button type="button" className="register-button" onClick={onRegister}>
           👤 Create Account
         </button>
       </div>
