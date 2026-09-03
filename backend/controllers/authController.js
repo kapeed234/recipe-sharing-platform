@@ -1,10 +1,34 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const dns = require("dns").promises;
 
 const isValidEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
+};
+
+// Checks whether the email domain is configured to receive email.
+// This rejects fake/nonexistent domains while avoiding unreliable SMTP mailbox probing.
+const hasMailServer = async (email) => {
+  const domain = email.split("@")[1];
+
+  try {
+    const mxRecords = await dns.resolveMx(domain);
+    if (Array.isArray(mxRecords) && mxRecords.length > 0) {
+      return true;
+    }
+  } catch (error) {
+    // Some valid domains may not publish MX records but may have an A/AAAA record
+    // and accept mail through the domain itself.
+  }
+
+  try {
+    const addresses = await dns.lookup(domain);
+    return Boolean(addresses);
+  } catch (error) {
+    return false;
+  }
 };
 
 // ================= REGISTER USER =================
@@ -30,6 +54,15 @@ const registerUser = async (req, res) => {
     if (!isValidEmail(normalizedEmail)) {
       return res.status(400).json({
         message: "Please provide a valid email address."
+      });
+    }
+
+    // Check that the email domain actually exists and can receive mail.
+    const emailDomainExists = await hasMailServer(normalizedEmail);
+
+    if (!emailDomainExists) {
+      return res.status(400).json({
+        message: "This email address does not appear to be valid or reachable. Please use an existing email address."
       });
     }
 
@@ -74,7 +107,7 @@ const registerUser = async (req, res) => {
   } catch (error) {
     console.error("Registration Error:", error);
     return res.status(500).json({
-      message: error.message || "An error occurred during registration."
+      message: "Unable to validate the email address right now. Please try again."
     });
   }
 };
@@ -125,7 +158,7 @@ const loginUser = async (req, res) => {
   } catch (error) {
     console.error("Login Error:", error);
     return res.status(500).json({
-      message: error.message || "An error occurred during login."
+      message: "An error occurred during login."
     });
   }
 };
