@@ -1691,3 +1691,135 @@ body {
   margin-left: 6px;
   vertical-align: middle;
 }
+
+/* ================================
+   RECIPE TABS & SAVED RECIPES
+================================ */
+
+.recipe-tabs-container {
+  margin: 20px 0;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.recipe-tabs {
+  display: inline-flex;
+  gap: 8px;
+  background: #f1f5f9;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.recipe-tab-btn {
+  background: transparent;
+  color: #475569;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recipe-tab-btn:hover {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.recipe-tab-btn.active {
+  background: white;
+  color: #1677f9;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.tab-badge {
+  background: #fee2e2;
+  color: #e11d48;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.recipe-tab-btn.active .tab-badge {
+  background: #ffe4e6;
+  color: #be123c;
+}
+
+.recipe-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.recipe-card-header h2 {
+  margin: 0;
+  font-size: 20px;
+  flex: 1;
+}
+
+.save-card-button {
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  color: #64748b;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.save-card-button:hover {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #e11d48;
+  transform: translateY(-1px);
+}
+
+.save-card-button.saved {
+  background: #fff1f2;
+  border-color: #fda4af;
+  color: #e11d48;
+  box-shadow: 0 2px 5px rgba(225, 29, 72, 0.15);
+}
+
+.save-detail-button {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #334155;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.save-detail-button:hover {
+  background: #fff1f2;
+  border-color: #fda4af;
+  color: #e11d48;
+}
+
+.save-detail-button.saved {
+  background: #fff1f2;
+  border-color: #f43f5e;
+  color: #e11d48;
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.15);
+}

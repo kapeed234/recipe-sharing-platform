@@ -5,7 +5,9 @@ const {
   getRecipes,
   getRecipeById,
   updateRecipe,
-  deleteRecipe
+  deleteRecipe,
+  toggleSaveRecipe,
+  getSavedRecipes
 } = require("../controllers/recipeController");
 
 const protect = require("../middleware/authMiddleware");
@@ -14,6 +16,10 @@ const upload = require("../middleware/uploadMiddleware");
 const router = express.Router();
 
 router.get("/", getRecipes);
+
+// Saved recipes routes - defined before /:id so "saved" is not treated as an ID param
+router.get("/saved", protect, getSavedRecipes);
+router.post("/:id/save", protect, toggleSaveRecipe);
 
 router.get("/:id", getRecipeById);
 

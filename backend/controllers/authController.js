@@ -98,7 +98,6 @@ const verifyRegistration = async (req, res) => {
       return res.status(400).json({ message: "Verification code has expired. Please register again to receive a new code." });
     }
     if (user.verificationCode !== normalizedCode) return res.status(400).json({ message: "Invalid verification code." });
-
     user.isVerified = true;
     user.verificationCode = null;
     user.verificationCodeExpires = null;
@@ -108,7 +107,12 @@ const verifyRegistration = async (req, res) => {
     return res.status(200).json({
       message: "Email verified and registration successful!",
       token,
-      user: { id: user._id, name: user.name, email: user.email }
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        savedRecipes: (user.savedRecipes || []).map((id) => id.toString())
+      }
     });
   } catch (error) {
     console.error("Verification Error:", error);
@@ -134,7 +138,12 @@ const loginUser = async (req, res) => {
     return res.status(200).json({
       message: "Login successful",
       token,
-      user: { id: user._id, name: user.name, email: user.email }
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        savedRecipes: (user.savedRecipes || []).map((id) => id.toString())
+      }
     });
   } catch (error) {
     console.error("Login Error:", error);

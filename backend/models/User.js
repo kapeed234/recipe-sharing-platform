@@ -34,7 +34,14 @@ const userSchema = new mongoose.Schema(
     verificationCodeExpires: {
       type: Date,
       default: null
-    }
+    },
+
+    savedRecipes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Recipe"
+      }
+    ]
   },
   {
     timestamps: true

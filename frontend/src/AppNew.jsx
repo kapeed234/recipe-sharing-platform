@@ -3,8 +3,7 @@ import Register from "./Register";
 import Login from "./Login";
 import CreateRecipe from "./CreateRecipe";
 import EditRecipe from "./EditRecipe";
-
-const API_URL = import.meta.env.VITE_API_URL || "https://recipe-sharing-backend-cltn.onrender.com";
+import { API_URL } from "./config/api";
 
 function App() {
   const [page, setPage] = useState(() => localStorage.getItem("token") ? "recipes" : "login");
@@ -16,7 +15,8 @@ function App() {
       return null;
     }
   });
-  const [myRecipesOnly, setMyRecipesOnly] = useState(false);
+  const [recipeTab, setRecipeTab] = useState("all");
+  const [savedRecipeIds, setSavedRecipeIds] = useState([]);
   const [authEmail, setAuthEmail] = useState("");
   const [authStep, setAuthStep] = useState("register");
   const [recipes, setRecipes] = useState([]);
@@ -33,6 +33,60 @@ function App() {
   const [editingReview, setEditingReview] = useState(null);
   const [editRating, setEditRating] = useState(5);
   const [editComment, setEditComment] = useState("");
+
+  const fetchSavedRecipes = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setSavedRecipeIds([]);
+      return;
+    }
+    try {
+      const response = await fetch(`${API_URL}/api/recipes/saved`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const ids = data.savedRecipeIds || (data.recipes ? data.recipes.map((r) => r._id) : []);
+        setSavedRecipeIds(ids.map((id) => (id?.toString ? id.toString() : id)));
+      }
+    } catch (error) {
+      console.error("Fetch saved recipes error:", error);
+    }
+  };
+
+  const handleToggleSave = async (recipeId, e) => {
+    if (e) e.stopPropagation();
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Please log in to save recipes!");
+      return;
+    }
+
+    const wasSaved = savedRecipeIds.includes(recipeId);
+    // Optimistic UI update
+    setSavedRecipeIds((prev) =>
+      wasSaved ? prev.filter((id) => id !== recipeId) : [...prev, recipeId]
+    );
+
+    try {
+      const response = await fetch(`${API_URL}/api/recipes/${recipeId}/save`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Failed to update saved recipe");
+      if (data.savedRecipeIds) {
+        setSavedRecipeIds(data.savedRecipeIds.map((id) => (id?.toString ? id.toString() : id)));
+      }
+    } catch (error) {
+      console.error("Toggle save error:", error);
+      // Revert optimistic update
+      setSavedRecipeIds((prev) =>
+        wasSaved ? [...prev, recipeId] : prev.filter((id) => id !== recipeId)
+      );
+      alert(error.message || "Could not save recipe.");
+    }
+  };
 
   const fetchRecipes = async () => {
     try {
@@ -56,6 +110,12 @@ function App() {
   };
 
   useEffect(() => {
+    if (localStorage.getItem("token")) {
+      fetchSavedRecipes();
+    }
+  }, []);
+
+  useEffect(() => {
     if (page === "recipes") fetchRecipes();
   }, [page]);
 
@@ -64,6 +124,8 @@ function App() {
       const u = localStorage.getItem("user");
       if (u) setCurrentUser(JSON.parse(u));
     } catch {}
+    fetchSavedRecipes();
+    setRecipeTab("all");
     setPage("recipes");
   };
 
@@ -71,7 +133,8 @@ function App() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setCurrentUser(null);
-    setMyRecipesOnly(false);
+    setRecipeTab("all");
+    setSavedRecipeIds([]);
     setRecipes([]);
     setSelectedRecipe(null);
     setPage("login");
@@ -148,12 +211,15 @@ function App() {
 
       {page === "recipes" && (() => {
         const currentUserId = currentUser?._id || currentUser?.id;
-        const displayedRecipes = myRecipesOnly && currentUserId
-          ? recipes.filter((r) => {
-              const authorId = r.author?._id || r.author;
-              return authorId === currentUserId;
-            })
-          : recipes;
+        let displayedRecipes = recipes;
+        if (recipeTab === "my" && currentUserId) {
+          displayedRecipes = recipes.filter((r) => {
+            const authorId = r.author?._id || r.author;
+            return authorId === currentUserId;
+          });
+        } else if (recipeTab === "saved") {
+          displayedRecipes = recipes.filter((r) => savedRecipeIds.includes(r._id));
+        }
 
         return (
           <div className="recipe-container">
@@ -167,18 +233,38 @@ function App() {
                 )}
               </div>
               <div className="header-buttons" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                {currentUser && (
-                  <button
-                    className={`my-recipes-toggle ${myRecipesOnly ? "active" : ""}`}
-                    onClick={() => setMyRecipesOnly(!myRecipesOnly)}
-                  >
-                    {myRecipesOnly ? "🍽️ Show All Recipes" : "👤 My Recipes"}
-                  </button>
-                )}
                 <button onClick={() => setPage("create")}>➕ Create Recipe</button>
                 <button onClick={handleLogout}>🚪 Logout</button>
               </div>
             </div>
+
+            {currentUser && (
+              <div className="recipe-tabs-container">
+                <div className="recipe-tabs">
+                  <button
+                    type="button"
+                    className={`recipe-tab-btn ${recipeTab === "all" ? "active" : ""}`}
+                    onClick={() => setRecipeTab("all")}
+                  >
+                    🍽️ All Recipes
+                  </button>
+                  <button
+                    type="button"
+                    className={`recipe-tab-btn ${recipeTab === "my" ? "active" : ""}`}
+                    onClick={() => setRecipeTab("my")}
+                  >
+                    👤 My Recipes
+                  </button>
+                  <button
+                    type="button"
+                    className={`recipe-tab-btn ${recipeTab === "saved" ? "active" : ""}`}
+                    onClick={() => setRecipeTab("saved")}
+                  >
+                    ❤️ Saved Recipes <span className="tab-badge">{savedRecipeIds.length}</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="filter-box">
               <h3>🔎 Search & Filter Recipes</h3>
@@ -196,17 +282,34 @@ function App() {
             <p>{message}</p>
             {displayedRecipes.length === 0 && !message && (
               <p style={{ textAlign: "center", padding: "30px 0", color: "#666" }}>
-                {myRecipesOnly ? "You haven't created any recipes yet. Click '➕ Create Recipe' above!" : "No recipes found."}
+                {recipeTab === "my"
+                  ? "You haven't created any recipes yet. Click '➕ Create Recipe' above!"
+                  : recipeTab === "saved"
+                  ? "You haven't saved any recipes yet. Click '🤍 Save' on any recipe to add it to your favorites!"
+                  : "No recipes found."}
               </p>
             )}
             <div className="recipe-grid">
               {displayedRecipes.map((recipe) => {
                 const isAuthor = currentUserId && ((recipe.author?._id || recipe.author) === currentUserId);
+                const isSaved = savedRecipeIds.includes(recipe._id);
                 return (
                   <div className="recipe-card" key={recipe._id}>
                     {recipe.image && <img className="recipe-card-image" src={imageUrl(recipe.image)} alt={recipe.title} />}
                     <div className="recipe-card-content">
-                      <h2>{recipe.title}</h2>
+                      <div className="recipe-card-header">
+                        <h2>{recipe.title}</h2>
+                        {currentUser && (
+                          <button
+                            type="button"
+                            className={`save-card-button ${isSaved ? "saved" : ""}`}
+                            onClick={(e) => handleToggleSave(recipe._id, e)}
+                            title={isSaved ? "Remove from saved recipes" : "Save recipe"}
+                          >
+                            {isSaved ? "❤️ Saved" : "🤍 Save"}
+                          </button>
+                        )}
+                      </div>
                       <p className="recipe-description">{recipe.description}</p>
                       <div className="recipe-info">
                         <p><strong>Category</strong><span>{recipe.category}</span></p>
@@ -246,20 +349,31 @@ function App() {
           <p><strong>Cooking Time:</strong> {selectedRecipe.cookingTime} minutes</p>
           <p><strong>Author:</strong> {selectedRecipe.author?.name || "Chef"}</p>
           <br />
-          {(() => {
-            const currentUserId = currentUser?._id || currentUser?.id;
-            const isAuthor = currentUserId && ((selectedRecipe.author?._id || selectedRecipe.author) === currentUserId);
-            return isAuthor ? (
-              <div style={{ display: "inline-flex", gap: "10px", marginBottom: "15px" }}>
-                <button onClick={() => setPage("edit")}>✏️ Edit Recipe</button>
-                <button onClick={deleteRecipe}>🗑️ Delete Recipe</button>
-              </div>
-            ) : (
-              <p style={{ color: "#666", fontStyle: "italic", marginBottom: "15px" }}>
-                👤 Created by {selectedRecipe.author?.name || "another chef"}
-              </p>
-            );
-          })()}
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", marginBottom: "15px" }}>
+            {currentUser && (
+              <button
+                type="button"
+                className={`save-detail-button ${savedRecipeIds.includes(selectedRecipe._id) ? "saved" : ""}`}
+                onClick={(e) => handleToggleSave(selectedRecipe._id, e)}
+              >
+                {savedRecipeIds.includes(selectedRecipe._id) ? "❤️ Saved in Favorites" : "🤍 Save to Favorites"}
+              </button>
+            )}
+            {(() => {
+              const currentUserId = currentUser?._id || currentUser?.id;
+              const isAuthor = currentUserId && ((selectedRecipe.author?._id || selectedRecipe.author) === currentUserId);
+              return isAuthor ? (
+                <>
+                  <button onClick={() => setPage("edit")}>✏️ Edit Recipe</button>
+                  <button onClick={deleteRecipe}>🗑️ Delete Recipe</button>
+                </>
+              ) : (
+                <span style={{ color: "#666", fontStyle: "italic" }}>
+                  👤 Created by {selectedRecipe.author?.name || "another chef"}
+                </span>
+              );
+            })()}
+          </div>
 
           <hr />
           <h2>⭐ Ratings & Reviews</h2>

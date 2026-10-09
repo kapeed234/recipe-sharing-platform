@@ -1,4 +1,5 @@
 const Recipe = require("../models/Recipe");
+const User = require("../models/User");
 
 const getCloudinaryUrl = (file) => {
   if (!file) return "";
@@ -147,9 +148,94 @@ const deleteRecipe = async (req, res) => {
     }
 
     await Recipe.findByIdAndDelete(req.params.id);
+
+    // Remove this recipe from any users who saved it
+    await User.updateMany(
+      { savedRecipes: req.params.id },
+      { $pull: { savedRecipes: req.params.id } }
+    );
+
     res.status(200).json({ message: "Recipe deleted successfully" });
   } catch (error) {
     console.error("Delete Recipe Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Toggle save/unsave recipe for the authenticated user
+const toggleSaveRecipe = async (req, res) => {
+  try {
+    const recipeId = req.params.id;
+    const recipe = await Recipe.findById(recipeId);
+
+    if (!recipe) {
+      return res.status(404).json({ message: "Recipe not found" });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!user.savedRecipes) {
+      user.savedRecipes = [];
+    }
+
+    const isAlreadySaved = user.savedRecipes.some(
+      (id) => id.toString() === recipeId
+    );
+
+    if (isAlreadySaved) {
+      user.savedRecipes = user.savedRecipes.filter(
+        (id) => id.toString() !== recipeId
+      );
+      await user.save();
+      return res.status(200).json({
+        message: "Recipe removed from your saved recipes",
+        isSaved: false,
+        savedRecipeIds: user.savedRecipes
+      });
+    } else {
+      user.savedRecipes.push(recipeId);
+      await user.save();
+      return res.status(200).json({
+        message: "Recipe saved to your favorites!",
+        isSaved: true,
+        savedRecipeIds: user.savedRecipes
+      });
+    }
+  } catch (error) {
+    console.error("Toggle Save Recipe Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get all saved recipes for the authenticated user
+const getSavedRecipes = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).populate({
+      path: "savedRecipes",
+      populate: {
+        path: "author",
+        select: "name email"
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Filter out null recipes (e.g. if any recipe was deleted)
+    const recipes = (user.savedRecipes || []).filter((r) => r !== null);
+    const savedRecipeIds = recipes.map((r) => r._id);
+
+    res.status(200).json({
+      count: recipes.length,
+      recipes,
+      savedRecipeIds
+    });
+  } catch (error) {
+    console.error("Get Saved Recipes Error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -159,5 +245,8 @@ module.exports = {
   getRecipes,
   getRecipeById,
   updateRecipe,
-  deleteRecipe
+  deleteRecipe,
+  toggleSaveRecipe,
+  getSavedRecipes
 };
+

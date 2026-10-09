@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-
-const API_URL = import.meta.env.VITE_API_URL || "https://recipe-sharing-backend-cltn.onrender.com";
+import { API_URL } from "./config/api";
 
 function RecipeDetails({ recipeId, onBack }) {
   const [recipe, setRecipe] = useState(null);
