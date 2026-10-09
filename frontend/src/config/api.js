@@ -1,4 +1,7 @@
 // Centralized API Base URL configuration
-// In Vercel: set VITE_API_URL environment variable to your deployed backend URL (e.g. https://recipe-sharing-backend-xxx.vercel.app)
-// If empty, requests are made relatively (useful for unified full-stack Vercel deployments).
-export const API_URL = import.meta.env.VITE_API_URL || "";
+// 1. If VITE_API_URL is configured (e.g. your Vercel backend URL), it will use that.
+// 2. Otherwise, it falls back to the live Render backend so the app remains connected.
+export const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://recipe-sharing-backend-cltn.onrender.com";
+

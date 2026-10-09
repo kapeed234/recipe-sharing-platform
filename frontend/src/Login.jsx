@@ -25,7 +25,21 @@ function Login({ onLogin, onRegister }) {
         })
       });
 
-      const data = await response.json();
+      let data;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.error("Non-JSON response:", response.status, text.slice(0, 300));
+        setIsError(true);
+        setMessage(
+          response.status === 404
+            ? "Backend API endpoint not found (404). Please verify that VITE_API_URL points to your backend."
+            : `Server returned status ${response.status}. Please check your backend logs.`
+        );
+        return;
+      }
 
       if (response.ok) {
         localStorage.setItem("token", data.token);
@@ -40,7 +54,11 @@ function Login({ onLogin, onRegister }) {
     } catch (error) {
       console.error("Login error:", error);
       setIsError(true);
-      setMessage("Unable to connect to server. Please check your connection.");
+      setMessage(
+        error.message?.includes("Failed to fetch")
+          ? "Unable to connect to the backend server. Please check your network or backend URL."
+          : `Connection error: ${error.message}`
+      );
     } finally {
       setLoading(false);
     }

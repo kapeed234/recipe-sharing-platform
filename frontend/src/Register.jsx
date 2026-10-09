@@ -30,7 +30,22 @@ function Register({ onRegistered, onBack, initialEmail = "" }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase(), password })
       });
-      const data = await response.json();
+
+      let data;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.error("Non-JSON response:", response.status, text.slice(0, 300));
+        setErrorMessage(
+          response.status === 404
+            ? "Backend API endpoint not found (404). Please verify that VITE_API_URL points to your backend."
+            : `Server returned status ${response.status}. Please check your backend logs.`
+        );
+        return;
+      }
+
       if (!response.ok) {
         setErrorMessage(data.message || "Registration failed. Please try again.");
         return;
@@ -39,7 +54,11 @@ function Register({ onRegistered, onBack, initialEmail = "" }) {
       setSuccessMessage("A 6-digit verification code has been sent to your email.");
     } catch (error) {
       console.error("Registration error:", error);
-      setErrorMessage("Unable to connect to the server. Please check your connection.");
+      setErrorMessage(
+        error.message?.includes("Failed to fetch")
+          ? "Unable to connect to the backend server. Please check your network or backend URL."
+          : `Connection error: ${error.message}`
+      );
     } finally {
       setLoading(false);
     }
@@ -58,7 +77,18 @@ function Register({ onRegistered, onBack, initialEmail = "" }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim().toLowerCase(), code })
       });
-      const data = await response.json();
+
+      let data;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.error("Non-JSON response:", response.status, text.slice(0, 300));
+        setErrorMessage(`Server returned status ${response.status}. Please check your backend logs.`);
+        return;
+      }
+
       if (!response.ok) {
         setErrorMessage(data.message || "Invalid verification code.");
         return;
@@ -69,7 +99,7 @@ function Register({ onRegistered, onBack, initialEmail = "" }) {
       setTimeout(() => onRegistered?.(), 700);
     } catch (error) {
       console.error("Verification error:", error);
-      setErrorMessage("Unable to connect to the server. Please try again.");
+      setErrorMessage(`Unable to connect to the server: ${error.message}`);
     } finally {
       setLoading(false);
     }
